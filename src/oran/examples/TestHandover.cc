@@ -282,28 +282,27 @@ main()
     // end of x2-handover-measures example
 
     // Print IPs, masks and interface offsets
-    /*
-    for(int in = 0; in < sgw->GetObject<Ipv4L3Protocol>()->GetNInterfaces(); in++)
-      for(int i = 0; i < sgw->GetObject<Ipv4L3Protocol>()->GetNAddresses(in); i++)
-      {
-        std::cout << sgw->GetObject<Ipv4L3Protocol>()->GetAddress (in, i) << std::endl;
-      }
-    std::cout << "-------------------------------------------------" << std::endl;
-    for(int in = 0; in < enbNodes.Get(0)->GetObject<Ipv4L3Protocol>()->GetNInterfaces(); in++)
-      for(int i = 0; i < enbNodes.Get(0)->GetObject<Ipv4L3Protocol>()->GetNAddresses(in); i++)
-        {
-          std::cout << enbNodes.Get(0)->GetObject<Ipv4L3Protocol>()->GetAddress (in, i) <<
-    std::endl;
-        }
-    std::cout << "-------------------------------------------------" << std::endl;
-    for(int in = 0; in < enbNodes.Get(1)->GetObject<Ipv4L3Protocol>()->GetNInterfaces(); in++)
-      for(int i = 0; i < enbNodes.Get(1)->GetObject<Ipv4L3Protocol>()->GetNAddresses(in); i++)
-        {
-          std::cout << enbNodes.Get(1)->GetObject<Ipv4L3Protocol>()->GetAddress (in, i) <<
-    std::endl;
-        }
-    exit(0);
-    */
+
+    // for (int in = 0; in < sgw->GetObject<Ipv4L3Protocol>()->GetNInterfaces(); in++)
+    //     for (int i = 0; i < sgw->GetObject<Ipv4L3Protocol>()->GetNAddresses(in); i++)
+    //     {
+    //         std::cout << sgw->GetObject<Ipv4L3Protocol>()->GetAddress(in, i) << std::endl;
+    //     }
+    // std::cout << "-------------------------------------------------" << std::endl;
+    // for (int in = 0; in < enbNodes.Get(0)->GetObject<Ipv4L3Protocol>()->GetNInterfaces(); in++)
+    //     for (int i = 0; i < enbNodes.Get(0)->GetObject<Ipv4L3Protocol>()->GetNAddresses(in); i++)
+    //     {
+    //         std::cout << enbNodes.Get(0)->GetObject<Ipv4L3Protocol>()->GetAddress(in, i)
+    //                   << std::endl;
+    //     }
+    // std::cout << "-------------------------------------------------" << std::endl;
+    // for (int in = 0; in < enbNodes.Get(1)->GetObject<Ipv4L3Protocol>()->GetNInterfaces(); in++)
+    //     for (int i = 0; i < enbNodes.Get(1)->GetObject<Ipv4L3Protocol>()->GetNAddresses(in); i++)
+    //     {
+    //         std::cout << enbNodes.Get(1)->GetObject<Ipv4L3Protocol>()->GetAddress(in, i)
+    //                   << std::endl;
+    //     }
+    // exit(0);
 
     E2AP e2t;
     NS_ASSERT(e2t.GetInstanceID() == 0);
