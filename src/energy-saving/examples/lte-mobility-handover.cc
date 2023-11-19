@@ -1,18 +1,14 @@
 #include <ns3/applications-module.h>
 #include <ns3/core-module.h>
-#include <ns3/energy-module.h>
 #include <ns3/internet-module.h>
 #include <ns3/lte-module.h>
 #include <ns3/mobility-building-info.h>
 #include <ns3/mobility-module.h>
 #include <ns3/network-module.h>
 #include <ns3/point-to-point-module.h>
-// #include <ns3/wifi-radio-energy-model-helper.h>
 
 using namespace ns3;
 using namespace std;
-
-// NS_LOG_COMPONENT_DEFINE("EnergyExample");
 
 // -------- Function called when there is a course change
 static void
@@ -46,20 +42,6 @@ sleepSchedule(Ptr<LteEnbNetDevice> enbDevice)
     std::cout << "Sleep scheduled event for Cell 3." << std::endl;
     std::cout << "TxPower of enb 2: " << txPower << std::endl;
 };
-
-void
-TotalEnergy(double oldValue, double totalEnergy)
-{
-    NS_LOG_UNCOND(Simulator::Now().GetSeconds()
-                  << "s Total energy consumed by radio = " << totalEnergy << "J");
-}
-
-void
-RemainingEnergy(double oldValue, double remainingEnergy)
-{
-    NS_LOG_UNCOND(Simulator::Now().GetSeconds()
-                  << "s Current remaining energy = " << remainingEnergy << "J");
-}
 
 int
 main()
@@ -215,7 +197,11 @@ main()
         clientApps.Start(Seconds(0.01));
     }
 
-    // Attach all UEs to the eNodeBs with the strongest RSRP
+    // Attach all UEs to the first eNodeB
+    // for (uint16_t i = 0; i < numberOfUes; i++)
+    // {
+    //     lteHelper->Attach(ueLteDevs.Get(i), enbLteDevs.Get(0));
+    // }
     lteHelper->Attach(ueLteDevs);
 
     Ptr<EpcTft> tft = Create<EpcTft>();
@@ -249,24 +235,6 @@ main()
     Config::Connect("/NodeList/*/DeviceList/*/LteEnbRrc/HandoverEndOk",
                     MakeCallback(&NotifyHandoverEndOkEnb));
 
-    // Energy Framework
-    // BasicEnergySourceHelper basicSourceHelper;
-    // basicSourceHelper.Set("BasicEnergySourceInitialEnergyJ", DoubleValue(0.1));
-    // EnergySourceContainer sources = basicSourceHelper.Install(enbNodes);
-    // WifiRadioEnergyModelHelper radioEnergyHelper;
-    // radioEnergyHelper.Set("TxCurrentA", DoubleValue(0.0174));
-    // DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install(enbLteDevs, sources);
-
-    // Ptr<BasicEnergySource> basicSourcePtr = DynamicCast<BasicEnergySource>(sources.Get(1));
-    // basicSourcePtr->TraceConnectWithoutContext("RemainingEnergy",
-    // MakeCallback(&RemainingEnergy));
-    // // device energy model
-    // Ptr<DeviceEnergyModel> basicRadioModelPtr =
-    //     basicSourcePtr->FindDeviceEnergyModels("ns3::WifiRadioEnergyModel").Get(0);
-    // NS_ASSERT(basicRadioModelPtr);
-    // basicRadioModelPtr->TraceConnectWithoutContext("TotalEnergyConsumption",
-    //                                                MakeCallback(&TotalEnergy));
-
     // -------- Enable PHY, MAC, RLC and PDCP level Key Performance Indicators (KPIs).
     // lteHelper->EnablePhyTraces(); // Uncomment this to enable LTE PHYSIC layer traces
     // lteHelper->EnableMacTraces(); // Uncomment this to enable LTE MAC layer traces
@@ -280,8 +248,8 @@ main()
     // testUlSinr->AddCallback(MakeCallback(&LteSpectrumValueCatcher::ReportValue, &ulSinrCatcher));
     // enbphy->GetUplinkSpectrumPhy()->AddDataSinrChunkProcessor(testUlSinr);
 
-    // Ptr<LteEnbNetDevice> enbDevice = enbLteDevs.Get(2)->GetObject<LteEnbNetDevice>();
-    // Simulator::Schedule(Seconds(10), &sleepSchedule, enbDevice);
+    Ptr<LteEnbNetDevice> enbDevice = enbLteDevs.Get(2)->GetObject<LteEnbNetDevice>();
+    Simulator::Schedule(Seconds(10), &sleepSchedule, enbDevice);
 
     // uint64_t dlBandwidth = enbDevice->GetDlBandwidth();
     // uint64_t teste = enbDevice->GetRrc()->GetUeManager(2)->GetImsi();

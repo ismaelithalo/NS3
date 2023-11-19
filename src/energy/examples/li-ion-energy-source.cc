@@ -51,7 +51,7 @@ PrintCellInfo(Ptr<LiIonEnergySource> es)
     std::cout << "At " << Simulator::Now().As(Time::S)
               << " Cell voltage: " << es->GetSupplyVoltage()
               << " V Remaining Capacity: " << es->GetRemainingEnergy() / (3.6 * 3600) << " Ah"
-              << std::endl;
+              << " V Remaining Energy: " << es->GetRemainingEnergy() << " J" << std::endl;
 
     if (!Simulator::IsFinished())
     {
@@ -66,7 +66,7 @@ main(int argc, char** argv)
     cmd.Parse(argc, argv);
 
     // uncomment below to see the energy consumption details
-    // LogComponentEnable ("LiIonEnergySource", LOG_LEVEL_DEBUG);
+    // LogComponentEnable("LiIonEnergySource", LOG_LEVEL_DEBUG);
 
     Ptr<Node> node = CreateObject<Node>();
 

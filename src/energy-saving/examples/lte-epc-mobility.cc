@@ -1,18 +1,14 @@
 #include <ns3/applications-module.h>
 #include <ns3/core-module.h>
-#include <ns3/energy-module.h>
 #include <ns3/internet-module.h>
 #include <ns3/lte-module.h>
 #include <ns3/mobility-building-info.h>
 #include <ns3/mobility-module.h>
 #include <ns3/network-module.h>
 #include <ns3/point-to-point-module.h>
-// #include <ns3/wifi-radio-energy-model-helper.h>
 
 using namespace ns3;
 using namespace std;
-
-// NS_LOG_COMPONENT_DEFINE("EnergyExample");
 
 // -------- Function called when there is a course change
 static void
@@ -20,45 +16,8 @@ CourseChange(std::string context, Ptr<const MobilityModel> mobility)
 {
     Vector pos = mobility->GetPosition();
     Vector vel = mobility->GetVelocity();
-    std::cout << Simulator::Now().GetSeconds() << ", model=" << mobility << ", POS: x=" << pos.x
+    std::cout << Simulator::Now() << ", model=" << mobility << ", POS: x=" << pos.x
               << ", y=" << pos.y << "; VEL:" << vel.x << ", y=" << vel.y << ";" << std::endl;
-}
-
-void
-NotifyHandoverEndOkEnb(std::string context, uint64_t imsi, uint16_t cellId, uint16_t rnti)
-{
-    std::cout << Simulator::Now().GetSeconds() << ", eNB CellId " << cellId
-              << ": completed handover of UE with IMSI " << imsi << " RNTI " << rnti << std::endl;
-}
-
-void
-simpleSchedule(uint64_t value)
-{
-    std::cout << "VALOR COLETADO: " << value << std::endl;
-}
-
-void
-sleepSchedule(Ptr<LteEnbNetDevice> enbDevice)
-{
-    enbDevice->GetPhy()->SetTxPower(0.0);
-    double txPower = enbDevice->GetPhy()->GetTxPower();
-
-    std::cout << "Sleep scheduled event for Cell 3." << std::endl;
-    std::cout << "TxPower of enb 2: " << txPower << std::endl;
-};
-
-void
-TotalEnergy(double oldValue, double totalEnergy)
-{
-    NS_LOG_UNCOND(Simulator::Now().GetSeconds()
-                  << "s Total energy consumed by radio = " << totalEnergy << "J");
-}
-
-void
-RemainingEnergy(double oldValue, double remainingEnergy)
-{
-    NS_LOG_UNCOND(Simulator::Now().GetSeconds()
-                  << "s Current remaining energy = " << remainingEnergy << "J");
 }
 
 int
@@ -66,13 +25,13 @@ main()
 {
     // -------- Define some model params
 
-    uint16_t numberOfUes = 2;
+    uint16_t numberOfUes = 5;
     uint16_t numberOfEnbs = 4;
     double enbDistance =
         75; // m -> The size of environment is defined by enbDistance and numberOfEnbs
     double enbTxPowerDbm = 46.0;
-    string ueMobilitySpeed = "3.0"; // m
-    string ueMobilityTime = "1s";   // s
+    string ueMobilitySpeed = "1.0"; // m
+    string ueMobilityTime = "2s";   // s
 
     // Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration",TimeValue(Seconds(2)));
     // Config::SetDefault("ns3::RandomWalk2dMobilityModel::Mode",StringValue("Time"));
@@ -84,10 +43,6 @@ main()
     Ptr<LteHelper> lteHelper = CreateObject<LteHelper>();
     Ptr<PointToPointEpcHelper> epcHelper = CreateObject<PointToPointEpcHelper>();
     lteHelper->SetEpcHelper(epcHelper);
-
-    lteHelper->SetHandoverAlgorithmType("ns3::A3RsrpHandoverAlgorithm");
-    lteHelper->SetHandoverAlgorithmAttribute("Hysteresis", DoubleValue(3.0));
-    lteHelper->SetHandoverAlgorithmAttribute("TimeToTrigger", TimeValue(MilliSeconds(256)));
 
     Ptr<Node> pgw = epcHelper->GetPgwNode();
 
@@ -107,10 +62,15 @@ main()
     Ipv4AddressHelper ipv4h;
     ipv4h.SetBase("1.0.0.0", "255.0.0.0");
     Ipv4InterfaceContainer internetIpIfaces = ipv4h.Assign(internetDevices);
+    // interface 0 is localhost, 1 is the p2p device
+    // Ipv4Address remoteHostAddr = internetIpIfaces.GetAddress(1);
 
     Ipv4StaticRoutingHelper ipv4RoutingHelper;
     Ptr<Ipv4StaticRouting> remoteHostStaticRouting;
     remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(remoteHost->GetObject<Ipv4>());
+    // remoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetEpcIpv4NetworkAddress(),
+    //                                            Ipv4Mask("255.255.0.0"),
+    //                                            1);
     remoteHostStaticRouting->AddNetworkRouteTo(Ipv4Address("7.0.0.0"), Ipv4Mask("255.0.0.0"), 1);
 
     // -------- Create Node objects for the eNB(s) and the UEs
@@ -166,7 +126,7 @@ main()
                                   "Y",
                                   StringValue(envYCenterStr),
                                   "Rho",
-                                  StringValue("ns3::UniformRandomVariable[Min=0|Max=50]"));
+                                  StringValue("ns3::UniformRandomVariable[Min=0|Max=200]"));
 
     mobility.SetMobilityModel(
         "ns3::RandomWalk2dMobilityModel",
@@ -215,7 +175,11 @@ main()
         clientApps.Start(Seconds(0.01));
     }
 
-    // Attach all UEs to the eNodeBs with the strongest RSRP
+    // Attach all UEs to the first eNodeB
+    // for (uint16_t i = 0; i < numberOfUes; i++)
+    // {
+    //     lteHelper->Attach(ueLteDevs.Get(i), enbLteDevs.Get(0));
+    // }
     lteHelper->Attach(ueLteDevs);
 
     Ptr<EpcTft> tft = Create<EpcTft>();
@@ -227,45 +191,19 @@ main()
                                           EpsBearer(EpsBearer::NGBR_VIDEO_TCP_DEFAULT),
                                           tft);
 
+    // NetDeviceContainer enbDevs;
+    // enbDevs = lteHelper->InstallEnbDevice(enbNodes);
+
+    // NetDeviceContainer ueDevs;
+    // ueDevs = lteHelper->InstallUeDevice(ueNodes);
+
+    // lteHelper->Attach(ueDevs.Get(0), enbDevs.Get(0));
+    // lteHelper->Attach(ueDevs.Get(1), enbDevs.Get(1));
+
     // -------- Activate a data radio bearer between each UE and the eNB it is attached to
     // enum EpsBearer::Qci q = EpsBearer::GBR_CONV_VOICE;
     // EpsBearer bearer(q);
     // lteHelper->ActivateDataRadioBearer(ueDevs, bearer);
-
-    // Add X2 interface
-    lteHelper->AddX2Interface(enbNodes);
-
-    // Configura regra de encaminhamento para eNBs que não sejam o primeiro
-    for (unsigned i = 1; i < numberOfEnbs; i++)
-    {
-        Ipv4StaticRoutingHelper ipv4RoutingHelper;
-        Ptr<Ipv4StaticRouting> remoteHostStaticRouting =
-            ipv4RoutingHelper.GetStaticRouting(enbNodes.Get(i)->GetObject<Ipv4>());
-        remoteHostStaticRouting->AddNetworkRouteTo(Ipv4Address("10.0.0.6"),
-                                                   Ipv4Mask("255.255.255.252"),
-                                                   1);
-    }
-
-    Config::Connect("/NodeList/*/DeviceList/*/LteEnbRrc/HandoverEndOk",
-                    MakeCallback(&NotifyHandoverEndOkEnb));
-
-    // Energy Framework
-    // BasicEnergySourceHelper basicSourceHelper;
-    // basicSourceHelper.Set("BasicEnergySourceInitialEnergyJ", DoubleValue(0.1));
-    // EnergySourceContainer sources = basicSourceHelper.Install(enbNodes);
-    // WifiRadioEnergyModelHelper radioEnergyHelper;
-    // radioEnergyHelper.Set("TxCurrentA", DoubleValue(0.0174));
-    // DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install(enbLteDevs, sources);
-
-    // Ptr<BasicEnergySource> basicSourcePtr = DynamicCast<BasicEnergySource>(sources.Get(1));
-    // basicSourcePtr->TraceConnectWithoutContext("RemainingEnergy",
-    // MakeCallback(&RemainingEnergy));
-    // // device energy model
-    // Ptr<DeviceEnergyModel> basicRadioModelPtr =
-    //     basicSourcePtr->FindDeviceEnergyModels("ns3::WifiRadioEnergyModel").Get(0);
-    // NS_ASSERT(basicRadioModelPtr);
-    // basicRadioModelPtr->TraceConnectWithoutContext("TotalEnergyConsumption",
-    //                                                MakeCallback(&TotalEnergy));
 
     // -------- Enable PHY, MAC, RLC and PDCP level Key Performance Indicators (KPIs).
     // lteHelper->EnablePhyTraces(); // Uncomment this to enable LTE PHYSIC layer traces
@@ -273,21 +211,7 @@ main()
     lteHelper->EnableRlcTraces(); // Uncomment this to enable LTE RADIO LINK CONTROL layer traces
     // lteHelper->EnablePdcpTraces(); // Uncomment this to enable LTE PDCP layer traces
 
-    // Ptr<LtePhy> enbphy =
-    //     enbDevs.Get(0)->GetObject<LteEnbNetDevice>()->GetPhy()->GetObject<LtePhy>();
-    // Ptr<LteChunkProcessor> testUlSinr = Create<LteChunkProcessor>();
-    // LteSpectrumValueCatcher ulSinrCatcher;
-    // testUlSinr->AddCallback(MakeCallback(&LteSpectrumValueCatcher::ReportValue, &ulSinrCatcher));
-    // enbphy->GetUplinkSpectrumPhy()->AddDataSinrChunkProcessor(testUlSinr);
-
-    // Ptr<LteEnbNetDevice> enbDevice = enbLteDevs.Get(2)->GetObject<LteEnbNetDevice>();
-    // Simulator::Schedule(Seconds(10), &sleepSchedule, enbDevice);
-
-    // uint64_t dlBandwidth = enbDevice->GetDlBandwidth();
-    // uint64_t teste = enbDevice->GetRrc()->GetUeManager(2)->GetImsi();
-    // Simulator::Schedule(Seconds(20), &simpleSchedule, teste);
-
-    Simulator::Stop(Seconds(30));
+    Simulator::Stop(Seconds(10));
     Simulator::Run();
     Simulator::Destroy();
     return 0;

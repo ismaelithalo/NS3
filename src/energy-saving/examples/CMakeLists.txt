@@ -12,6 +12,9 @@ build_lib_example(
                     ${libcore}
                     ${libnetwork}
                     ${libmobility}
+                    ${libpoint-to-point}
+                    ${libinternet}
+                    ${libapplications}
 )
 
 # set(base_examples
