@@ -1,20 +1,47 @@
-#include "ns3/core-module.h"
-#include "ns3/energy-saving-helper.h"
+#include <ns3/core-module.h>
+#include <ns3/energy-module.h>
 
 using namespace ns3;
 
-int
-main(int argc, char* argv[])
+static void
+PrintCellInfo(Ptr<LiIonEnergySource> es)
 {
-    bool verbose = true;
+    std::cout << "At " << Simulator::Now().As(Time::S)
+              << " Cell voltage: " << es->GetSupplyVoltage()
+              << " V Remaining Capacity: " << es->GetRemainingEnergy() / (3.6 * 3600)
+              << " Ah"
+              //   << " V Remaining Energy: " << es->GetRemainingEnergy() << " J"
+              << std::endl;
 
-    CommandLine cmd(__FILE__);
-    cmd.AddValue("verbose", "Tell application to log if true", verbose);
+    if (!Simulator::IsFinished())
+    {
+        Simulator::Schedule(Seconds(10), &PrintCellInfo, es);
+    }
+}
 
-    cmd.Parse(argc, argv);
+int
+main()
+{
+    Ptr<Node> node = CreateObject<Node>();
 
-    /* ... */
+    Ptr<SimpleDeviceEnergyModel> deviceEM = CreateObject<SimpleDeviceEnergyModel>();
+    // Ptr<EnergySourceContainer> energySrcCont = CreateObject<EnergySourceContainer>();
+    Ptr<LiIonEnergySource> energySrc = CreateObject<LiIonEnergySource>();
+    // energySrcCont->Add(energySrc);
+    energySrc->SetNode(node);
+    deviceEM->SetEnergySource(energySrc);
+    energySrc->AppendDeviceEnergyModel(deviceEM);
+    deviceEM->SetNode(node);
+    // node->AggregateObject(energySrcCont);
 
+    deviceEM->SetCurrentA(2.33); // Isso é o que caracteriza um estado de descarga
+
+    // Ptr<BasicEnergySource> basicSrc = CreateObject<BasicEnergySource>();
+    // deviceEM->
+
+    PrintCellInfo(energySrc);
+
+    Simulator::Stop(Seconds(100));
     Simulator::Run();
     Simulator::Destroy();
     return 0;

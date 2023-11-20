@@ -1,7 +1,16 @@
 build_lib_example(
-    NAME energy-saving-example
-    SOURCE_FILES energy-saving-example.cc
-    LIBRARIES_TO_LINK ${libenergy-saving}
+  NAME energy-saving-example
+  SOURCE_FILES energy-saving-example.cc
+  LIBRARIES_TO_LINK 
+                    ${liblte}
+                    ${libcore}
+                    ${libnetwork}
+                    ${libmobility}
+                    ${libpoint-to-point}
+                    ${libinternet}
+                    ${libapplications}
+                    ${libenergy}
+                    # ${libenergy-saving}
 )
 
 build_lib_example(
@@ -15,6 +24,7 @@ build_lib_example(
                     ${libpoint-to-point}
                     ${libinternet}
                     ${libapplications}
+                    ${libenergy}
 )
 
 # set(base_examples
