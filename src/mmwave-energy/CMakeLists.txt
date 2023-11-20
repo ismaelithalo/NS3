@@ -25,6 +25,7 @@ build_lib(
     LIBRARIES_TO_LINK 
                 ${libcore}
                 ${libenergy}
+                ${liblte}
     TEST_SOURCES 
                 test/mmwave-energy-test-suite.cc
                 ${examples_as_tests_sources}
