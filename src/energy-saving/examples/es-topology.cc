@@ -16,6 +16,10 @@
 using namespace ns3;
 using namespace std;
 
+static double IDLE = 86.3;
+static double TX = 742.2;
+static double RX = 138.9;
+
 // -------- Function called when there is a course change
 static void
 CourseChange(std::string context, Ptr<const MobilityModel> mobility)
@@ -50,14 +54,6 @@ sleepSchedule(Ptr<LteEnbNetDevice> enbDevice)
 };
 
 void
-EnergyConsumptionUpdate(double totaloldEnergyConsumption, double totalnewEnergyConsumption)
-{
-    Time currentTime = Simulator::Now();
-    std::cout << currentTime.GetSeconds() << "," << totalnewEnergyConsumption << ","
-              << (totalnewEnergyConsumption - totaloldEnergyConsumption) << std::endl;
-}
-
-void
 ChangeStateEventUl(int32_t oldState, int32_t newState)
 {
     // ChangeState(newState);
@@ -69,6 +65,26 @@ ChangeStateEventDl(int32_t oldState, int32_t newState)
 {
     // ChangeState(newState);
     std::cout << "ESTADO DO DOWNLINK: " << newState << std::endl;
+}
+
+void
+PrintRemainEnergy(double oldValue, double value)
+{
+    std::cout << "Remaining energy of source: " << value << std::endl;
+}
+
+void
+TotalEnergyConsumptionByDevice(DeviceEnergyModelContainer deviceEMCont)
+{
+    double totalEnergyConsumption = 0;
+    for (uint32_t i = 0; i < deviceEMCont.GetN(); ++i)
+    {
+        Ptr<DeviceEnergyModel> device = deviceEMCont.Get(i);
+        totalEnergyConsumption += device->GetTotalEnergyConsumption();
+        std::cout << "Total energy consumption of node " << i << " : "
+                  << device->GetTotalEnergyConsumption() << std::endl;
+    }
+    std::cout << "Total energy consumption: " << totalEnergyConsumption << std::endl;
 }
 
 int
@@ -83,6 +99,8 @@ main()
     double enbTxPowerDbm = 46.0;
     string ueMobilitySpeed = "3.0"; // m
     string ueMobilityTime = "1s";   // s
+
+    double simuTime = 100;
 
     // Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration",TimeValue(Seconds(2)));
     // Config::SetDefault("ns3::RandomWalk2dMobilityModel::Mode",StringValue("Time"));
@@ -266,8 +284,8 @@ main()
 
     Ptr<LteSpectrumPhy> mmwaveDlSpectrumPhy = mmwavePhy->GetDlSpectrumPhy();
     Ptr<LteSpectrumPhy> mmwaveUlSpectrumPhy = mmwavePhy->GetUlSpectrumPhy();
-    mmwaveDlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventDl));
-    mmwaveUlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventUl));
+    // mmwaveDlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventDl));
+    // mmwaveUlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventUl));
 
     //     enum State
     // {
@@ -281,38 +299,31 @@ main()
     // };
 
     // Energy Framework
-    // BasicEnergySourceHelper basicSourceHelper;
-    // basicSourceHelper.Set("BasicEnergySourceInitialEnergyJ", DoubleValue(1000000));
-    // basicSourceHelper.Set("BasicEnergySupplyVoltageV", DoubleValue(5.0));
-    // Install Energy Source
-    // EnergySourceContainer sources = basicSourceHelper.Install(ueNodes.Get(0));
-    // EnergySourceContainer Enb_sources = basicSourceHelper.Install(enbNodes);
-    // Device Energy Model
-    // MmWaveRadioEnergyModelHelper nrEnergyHelper;
-    // MmWaveRadioEnergyModelEnbHelper enbEnergyHelper;
-    // DeviceEnergyModelContainer deviceEnergyModel = nrEnergyHelper.Install(ueLteDevs, sources);
-    // DeviceEnergyModelContainer bsEnergyModel = enbEnergyHelper.Install(enbLteDevs, Enb_sources);
-    // deviceEnergyModel.Get(0)->TraceConnectWithoutContext("TotalEnergyConsumption",
-    //                                                      MakeCallback(&EnergyConsumptionUpdate));
-    // bsEnergyModel.Get(0)->TraceConnectWithoutContext("TotalEnergyConsumption",
-    //                                                  MakeCallback(&EnergyConsumptionUpdate));
-    // Store Energy consumption value
-    // std::ofstream energyFile;
-    // std::string energyFileName = "energyfile.csv";
-    // energyFile.open(energyFileName, std::ios_base::out | std::ios_base::trunc);
-    // energyFile << "Time,EnergyConsumption,StateEnergy" << std::endl;
+    double defaultCurrent = 86.3;
+    int defaultSourceVoltage = IDLE;
+    int defaultSourceInitialEnergyJ = 100000000;
+    int defaultSourceUpdateInterval = 30;
 
-    // Ptr<MmWaveRadioEnergyModel> radioEnergyUe;
-    // Ptr<MmWaveRadioEnergyModel> radioEnergyUe = CreateObject<MmWaveRadioEnergyModel>();
-    // radioEnergyUe->SetNode(ueNodes.Get(0));
-    // radioEnergy->SetEnergySource(sources);
+    Ptr<BasicEnergySource> basicSource = CreateObject<BasicEnergySource>();
+    basicSource->SetSupplyVoltage(defaultSourceVoltage);
+    basicSource->SetEnergyUpdateInterval(Seconds(defaultSourceUpdateInterval));
+    basicSource->SetInitialEnergy(defaultSourceInitialEnergyJ);
+    basicSource->TraceConnectWithoutContext("RemainingEnergy", MakeCallback(&PrintRemainEnergy));
 
-    // DeviceEnergyModelContainer deviceEnergyModel;
+    DeviceEnergyModelContainer deviceEMCont;
+    for (uint32_t u = 0; u < enbNodes.GetN(); ++u)
+    {
+        Ptr<Node> enb = enbNodes.Get(u);
+        basicSource->SetNode(enb);
 
-    // Ptr<NetDevice> device = enbLteDevs.Get(0);
-    // string name = device->GetInstanceTypeId().GetName();
-    // cout << name << endl;
-    // Ptr<LteSpectrumPhy> ueDlPhy = device->GetPhy()->GetDlSpectrumPhy();
+        Ptr<SimpleDeviceEnergyModel> eneMod = CreateObject<SimpleDeviceEnergyModel>();
+        eneMod->SetNode(enb);
+        eneMod->SetEnergySource(basicSource);
+        eneMod->SetCurrentA(defaultCurrent);
+
+        basicSource->AppendDeviceEnergyModel(eneMod);
+        deviceEMCont.Add(eneMod);
+    }
 
     // -------- Enable PHY, MAC, RLC and PDCP level Key Performance Indicators (KPIs).
     // lteHelper->EnablePhyTraces(); // Uncomment this to enable LTE PHYSIC layer traces
@@ -326,7 +337,9 @@ main()
     // uint64_t teste = enbDevice->GetRrc()->GetUeManager(2)->GetImsi();
     // Simulator::Schedule(Seconds(20), &simpleSchedule, teste);
 
-    Simulator::Stop(Seconds(30));
+    Simulator::Schedule(Seconds(simuTime), &TotalEnergyConsumptionByDevice, deviceEMCont);
+
+    Simulator::Stop(Seconds(simuTime));
     Simulator::Run();
     Simulator::Destroy();
     return 0;
