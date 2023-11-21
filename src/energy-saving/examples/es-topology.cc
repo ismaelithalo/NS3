@@ -1,5 +1,5 @@
 // #include "ns3/mmwave-energy-helper.h"
-#include "ns3/mmwave-energy.h"
+// #include "ns3/mmwave-energy.h"
 // #include "ns3/mmwave-radio-energy-model-enb-helper.h"
 // #include "ns3/mmwave-radio-energy-model-enb.h"
 #include <ns3/applications-module.h>
@@ -55,6 +55,20 @@ EnergyConsumptionUpdate(double totaloldEnergyConsumption, double totalnewEnergyC
     Time currentTime = Simulator::Now();
     std::cout << currentTime.GetSeconds() << "," << totalnewEnergyConsumption << ","
               << (totalnewEnergyConsumption - totaloldEnergyConsumption) << std::endl;
+}
+
+void
+ChangeStateEventUl(int32_t oldState, int32_t newState)
+{
+    // ChangeState(newState);
+    std::cout << "ESTADO DO UPLINK: " << newState << std::endl;
+}
+
+void
+ChangeStateEventDl(int32_t oldState, int32_t newState)
+{
+    // ChangeState(newState);
+    std::cout << "ESTADO DO DOWNLINK: " << newState << std::endl;
 }
 
 int
@@ -252,6 +266,19 @@ main()
 
     Ptr<LteSpectrumPhy> mmwaveDlSpectrumPhy = mmwavePhy->GetDlSpectrumPhy();
     Ptr<LteSpectrumPhy> mmwaveUlSpectrumPhy = mmwavePhy->GetUlSpectrumPhy();
+    mmwaveDlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventDl));
+    mmwaveUlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventUl));
+
+    //     enum State
+    // {
+    //     IDLE = 0,
+    //     TX_DL_CTRL = 1,
+    //     TX_DATA = 2,
+    //     TX_UL_SRS = 3,
+    //     RX_DL_CTRL = 4,
+    //     RX_DATA = 5,
+    //     RX_UL_SRS = 6
+    // };
 
     // Energy Framework
     // BasicEnergySourceHelper basicSourceHelper;
@@ -285,7 +312,7 @@ main()
     // Ptr<NetDevice> device = enbLteDevs.Get(0);
     // string name = device->GetInstanceTypeId().GetName();
     // cout << name << endl;
-    // Ptr<LteSpectrumPhy> ueDlPhy = ueDevice->GetPhy()->GetDlSpectrumPhy();
+    // Ptr<LteSpectrumPhy> ueDlPhy = device->GetPhy()->GetDlSpectrumPhy();
 
     // -------- Enable PHY, MAC, RLC and PDCP level Key Performance Indicators (KPIs).
     // lteHelper->EnablePhyTraces(); // Uncomment this to enable LTE PHYSIC layer traces
@@ -299,7 +326,7 @@ main()
     // uint64_t teste = enbDevice->GetRrc()->GetUeManager(2)->GetImsi();
     // Simulator::Schedule(Seconds(20), &simpleSchedule, teste);
 
-    Simulator::Stop(Seconds(15));
+    Simulator::Stop(Seconds(30));
     Simulator::Run();
     Simulator::Destroy();
     return 0;

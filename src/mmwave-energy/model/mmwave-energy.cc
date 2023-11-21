@@ -276,10 +276,13 @@ MmWaveRadioEnergyModel::GetStateA(int state) const
     case 0:
         return m_SleepCurrentA;
     case 1:
-        return m_txCurrentA;
     case 2:
-        return m_rxCurrentA;
     case 3:
+        return m_txCurrentA;
+    case 4:
+    case 6:
+        return m_rxCurrentA;
+    case 5:
         return m_rxCTRLCurrentA;
     }
     NS_FATAL_ERROR("MmWaveRadioEnergyModel: undefined radio state " << state);

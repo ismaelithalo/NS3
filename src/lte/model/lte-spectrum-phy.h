@@ -23,6 +23,7 @@
 #define LTE_SPECTRUM_PHY_H
 
 #include "ns3/random-variable-stream.h"
+#include "ns3/traced-value.h"
 #include <ns3/data-rate.h>
 #include <ns3/event-id.h>
 #include <ns3/ff-mac-common.h>
@@ -156,19 +157,22 @@ class LteSpectrumPhy : public SpectrumPhy
      */
     enum State
     {
-        IDLE,
-        TX_DL_CTRL,
-        TX_DATA,
-        TX_UL_SRS,
-        RX_DL_CTRL,
-        RX_DATA,
-        RX_UL_SRS
+        IDLE = 0,
+        TX_DL_CTRL = 1,
+        TX_DATA = 2,
+        TX_UL_SRS = 3,
+        RX_DL_CTRL = 4,
+        RX_DATA = 5,
+        RX_UL_SRS = 6
     };
+
+    TracedValue<int32_t> m_intState; //!< used to trace the value of m_state
 
     /**
      * \brief Get the type ID.
      * \return the object TypeId
      */
+
     static TypeId GetTypeId();
     // inherited from Object
     void DoDispose() override;

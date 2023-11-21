@@ -228,7 +228,11 @@ LteSpectrumPhy::GetTypeId()
             .AddTraceSource("UlPhyReception",
                             "DL reception PHY layer statistics.",
                             MakeTraceSourceAccessor(&LteSpectrumPhy::m_ulPhyReception),
-                            "ns3::PhyReceptionStatParameters::TracedCallback");
+                            "ns3::PhyReceptionStatParameters::TracedCallback")
+            .AddTraceSource("State",
+                            "State Value to trace",
+                            MakeTraceSourceAccessor(&LteSpectrumPhy::m_intState),
+                            "ns3::TracedValueCallback::Int32");
     return tid;
 }
 
@@ -397,6 +401,7 @@ LteSpectrumPhy::ChangeState(State newState)
 {
     NS_LOG_LOGIC(this << " state: " << m_state << " -> " << newState);
     m_state = newState;
+    m_intState = newState;
 }
 
 void
