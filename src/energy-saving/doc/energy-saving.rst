@@ -33,6 +33,18 @@ Design
 Briefly describe the software design of the model and how it fits into
 the existing ns-3 architecture.
 
+The ENB energy consume model is based on the mmwave-energy module. On the mmwave module (base for mmwave-energy), the phy spectrum of the mmwave enb have 4 states: IDLE = 0, TX = 1, RX_DATA = 2, RX_CTRL = 3. Therefore, on the mmwave-energy-enb, almost each state is associated with a power consumption value. More specifcaly, the power consumption is associated with the type of state. For example, IDLE, TX and RX, have a power consumption value, but RX_CTRL is considered as RX.
+
+On the current energy model, that is based on standard Lte module, the lte phy spectrum for enb specifies 7 states: IDLE = 0, TX_DL_CTRL = 1, TX_DATA = 2, TX_UL_SRS = 3, RX_DL_CTRL = 4, RX_DATA = 5, RX_UL_SRS = 6. Following the same idea of the mmwave-energy, we can consider that RX_DL_CTRL and RX_UL_SRS are considered as RX and TX_DL_CTRL, TX_DATA and TX_UL_SRS are considered as TX.
+
+For practical and time reasons, the value of each state is the same as the mmwave-energy module. However, the values can be changed in the future. Therefore, the power consumption values (actually current) are:
+
+IDLE: 86.3 A
+TX: 742.2 A
+RX: 138.9 A
+
+Although the module being based on the standard lte module, a change needed to be done on the lte phy spectrum file, because by default, the lte phy spectrum state is not provided as a traceble value.
+
 Scope and Limitations
 =====================
 
