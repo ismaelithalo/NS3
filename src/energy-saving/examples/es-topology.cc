@@ -1,24 +1,36 @@
-// #include "ns3/mmwave-energy-helper.h"
-// #include "ns3/mmwave-energy.h"
-// #include "ns3/mmwave-radio-energy-model-enb-helper.h"
-// #include "ns3/mmwave-radio-energy-model-enb.h"
+// Developed by: Ismael Ithalo, @ismaelithalo
+
 #include <ns3/applications-module.h>
 #include <ns3/core-module.h>
 #include <ns3/energy-module.h>
 #include <ns3/internet-module.h>
 #include <ns3/lte-module.h>
-// #include <ns3/mmwave-energy-module.h>
 #include <ns3/mobility-building-info.h>
 #include <ns3/mobility-module.h>
 #include <ns3/network-module.h>
 #include <ns3/point-to-point-module.h>
 
+#include <vector>
+
 using namespace ns3;
 using namespace std;
 
-static double IDLE = 86.3;
-static double TX = 742.2;
-static double RX = 138.9;
+static double IDLE_A = 86.3;
+static double TX_A = 742.2;
+static double RX_A = 138.9;
+
+vector<Ptr<SimpleDeviceEnergyModel>> simDevEMCont;
+
+// enum State
+// {
+//     IDLE = 0,
+//     TX_DL_CTRL = 1,
+//     TX_DATA = 2,
+//     TX_UL_SRS = 3,
+//     RX_DL_CTRL = 4,
+//     RX_DATA = 5,
+//     RX_UL_SRS = 6
+// };
 
 // -------- Function called when there is a course change
 static void
@@ -44,27 +56,102 @@ simpleSchedule(uint64_t value)
 }
 
 void
-sleepSchedule(Ptr<LteEnbNetDevice> enbDevice)
+setCurrentDeviceVector(uint32_t id, double current)
 {
-    enbDevice->GetPhy()->SetTxPower(0.0);
-    double txPower = enbDevice->GetPhy()->GetTxPower();
-
-    std::cout << "Sleep scheduled event for Cell 3." << std::endl;
-    std::cout << "TxPower of enb 2: " << txPower << std::endl;
-};
-
-void
-ChangeStateEventUl(int32_t oldState, int32_t newState)
-{
-    // ChangeState(newState);
-    std::cout << "ESTADO DO UPLINK: " << newState << std::endl;
+    for (uint32_t i = 0; i < simDevEMCont.size(); ++i)
+    {
+        Ptr<SimpleDeviceEnergyModel> device = simDevEMCont[i];
+        if (device->GetNode()->GetId() == id)
+        {
+            device->SetCurrentA(current);
+        }
+    }
 }
 
 void
-ChangeStateEventDl(int32_t oldState, int32_t newState)
+sleepSchedule(Ptr<LteEnbNetDevice> enbDevice)
 {
+    double currentPoweSleep = 0.0;
+    uint32_t id = enbDevice->GetNode()->GetId();
+
+    setCurrentDeviceVector(id, currentPoweSleep);
+
+    enbDevice->GetPhy()->SetTxPower(currentPoweSleep);
+    double txPower = enbDevice->GetPhy()->GetTxPower();
+    // enbDevice->GetPhy()->GetDlSpectrumPhy()->SetState(ns3::LteSpectrumPhy::State::IDLE);
+    // enbDevice->GetPhy()->GetUlSpectrumPhy()->SetState(ns3::LteSpectrumPhy::State::IDLE);
+    std::cout << "Sleep scheduled event for Cell " << id << std::endl;
+    std::cout << "TxPower of enb " << id << ": " << txPower << std::endl;
+}
+
+// void
+// ChangeStateEventUl(int32_t oldState, int32_t newState)
+// {
+//     // ChangeState(newState);
+//     std::cout << "ESTADO DO UPLINK: " << newState << std::endl;
+// }
+void
+ChangeStateEventUlv2(string idOnContext, int32_t oldState, int32_t newState)
+{
+    uint32_t id = stoi(idOnContext);
+
+    switch (newState)
+    {
+    case 0:
+        setCurrentDeviceVector(id, IDLE_A);
+        break;
+    case 1:
+    case 2:
+    case 3:
+        setCurrentDeviceVector(id, TX_A);
+        break;
+    case 4:
+    case 5:
+    case 6:
+        setCurrentDeviceVector(id, RX_A);
+        break;
+
+    default:
+        break;
+    }
+
     // ChangeState(newState);
-    std::cout << "ESTADO DO DOWNLINK: " << newState << std::endl;
+    std::cout << "ESTADO DO UPLINK PARA O NÓ " << idOnContext << ": " << newState << std::endl;
+}
+
+// void
+// ChangeStateEventDl(int32_t oldState, int32_t newState)
+// {
+//     // ChangeState(newState);
+//     std::cout << "ESTADO DO DOWNLINK: " << newState << std::endl;
+// }
+void
+ChangeStateEventDlv2(string idOnContext, int32_t oldState, int32_t newState)
+{
+    uint32_t id = stoi(idOnContext);
+
+    switch (newState)
+    {
+    case 0:
+        setCurrentDeviceVector(id, IDLE_A);
+        break;
+    case 1:
+    case 2:
+    case 3:
+        setCurrentDeviceVector(id, TX_A);
+        break;
+    case 4:
+    case 5:
+    case 6:
+        setCurrentDeviceVector(id, RX_A);
+        break;
+
+    default:
+        break;
+    }
+
+    // ChangeState(newState);
+    std::cout << "ESTADO DO DOWNLINK PARA O NÓ " << idOnContext << ": " << newState << std::endl;
 }
 
 void
@@ -74,14 +161,14 @@ PrintRemainEnergy(double oldValue, double value)
 }
 
 void
-TotalEnergyConsumptionByDevice(DeviceEnergyModelContainer deviceEMCont)
+TotalEnergyConsumptionByDevice(vector<Ptr<SimpleDeviceEnergyModel>> deviceEMCont)
 {
     double totalEnergyConsumption = 0;
-    for (uint32_t i = 0; i < deviceEMCont.GetN(); ++i)
+    for (uint32_t i = 0; i < deviceEMCont.size(); ++i)
     {
-        Ptr<DeviceEnergyModel> device = deviceEMCont.Get(i);
+        Ptr<SimpleDeviceEnergyModel> device = deviceEMCont[i];
         totalEnergyConsumption += device->GetTotalEnergyConsumption();
-        std::cout << "Total energy consumption of node " << i << " : "
+        std::cout << "Total energy consumption of node " << device->GetNode()->GetId() << " : "
                   << device->GetTotalEnergyConsumption() << std::endl;
     }
     std::cout << "Total energy consumption: " << totalEnergyConsumption << std::endl;
@@ -93,14 +180,15 @@ main()
     // -------- Define some model params
 
     uint16_t numberOfUes = 2;
-    uint16_t numberOfEnbs = 4;
+    uint16_t numberOfEnbs = 2;
     double enbDistance =
         75; // m -> The size of environment is defined by enbDistance and numberOfEnbs
     double enbTxPowerDbm = 46.0;
     string ueMobilitySpeed = "3.0"; // m
     string ueMobilityTime = "1s";   // s
 
-    double simuTime = 100;
+    double simuTime = 10;
+    double sleepTime = 8;
 
     // Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration",TimeValue(Seconds(2)));
     // Config::SetDefault("ns3::RandomWalk2dMobilityModel::Mode",StringValue("Time"));
@@ -210,7 +298,7 @@ main()
     mobility.Install(ueNodes);
 
     // -------- For each course change event, print out a line of text
-    Config::Connect("/NodeList/*/$ns3::MobilityModel/CourseChange", MakeCallback(&CourseChange));
+    // Config::Connect("/NodeList/*/$ns3::MobilityModel/CourseChange", MakeCallback(&CourseChange));
 
     // -------- Install an LTE protocol stack on nodes
 
@@ -277,15 +365,36 @@ main()
     Config::Connect("/NodeList/*/DeviceList/*/LteEnbRrc/HandoverEndOk",
                     MakeCallback(&NotifyHandoverEndOkEnb));
 
-    Ptr<NetDevice> device = enbLteDevs.Get(0);
+    // Ptr<NetDevice> device = enbLteDevs.Get(0);
     // Ptr<Node> node = device->GetNode();
-    Ptr<LteEnbNetDevice> mmwaveEnbDevice = DynamicCast<LteEnbNetDevice>(device);
-    Ptr<LteEnbPhy> mmwavePhy = mmwaveEnbDevice->GetPhy();
+    // Ptr<LteEnbNetDevice> mmwaveEnbDevice = DynamicCast<LteEnbNetDevice>(device);
+    // Ptr<LteEnbPhy> mmwavePhy = mmwaveEnbDevice->GetPhy();
 
-    Ptr<LteSpectrumPhy> mmwaveDlSpectrumPhy = mmwavePhy->GetDlSpectrumPhy();
-    Ptr<LteSpectrumPhy> mmwaveUlSpectrumPhy = mmwavePhy->GetUlSpectrumPhy();
-    // mmwaveDlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventDl));
-    // mmwaveUlSpectrumPhy->TraceConnectWithoutContext("State", MakeCallback(&ChangeStateEventUl));
+    // Ptr<LteSpectrumPhy> mmwaveDlSpectrumPhy = mmwavePhy->GetDlSpectrumPhy();
+    // Ptr<LteSpectrumPhy> mmwaveUlSpectrumPhy = mmwavePhy->GetUlSpectrumPhy();
+
+    // string id = to_string(device->GetNode()->GetId());
+
+    // mmwaveDlSpectrumPhy->TraceConnect("State", id, MakeCallback(&ChangeStateEventDlv2));
+    // mmwaveUlSpectrumPhy->TraceConnect("State", id, MakeCallback(&ChangeStateEventUlv2));
+
+    for (uint32_t u = 0; u < enbLteDevs.GetN(); ++u)
+    {
+        Ptr<NetDevice> device = enbLteDevs.Get(u);
+        Ptr<LteEnbNetDevice> lteEnbDeviceConfig = DynamicCast<LteEnbNetDevice>(device);
+        Ptr<LteEnbPhy> ltePhy = lteEnbDeviceConfig->GetPhy();
+        Ptr<LteSpectrumPhy> lteDlSpectrumPhy = ltePhy->GetDlSpectrumPhy();
+        Ptr<LteSpectrumPhy> lteUlSpectrumPhy = ltePhy->GetUlSpectrumPhy();
+
+        string id = to_string(device->GetNode()->GetId());
+
+        lteDlSpectrumPhy->TraceConnect("State", id, MakeCallback(&ChangeStateEventDlv2));
+        lteUlSpectrumPhy->TraceConnect("State", id, MakeCallback(&ChangeStateEventUlv2));
+        // lteDlSpectrumPhy->TraceConnectWithoutContext("State",
+        // MakeCallback(&ChangeStateEventDl));
+        // lteUlSpectrumPhy->TraceConnectWithoutContext("State",
+        // MakeCallback(&ChangeStateEventUl));
+    }
 
     //     enum State
     // {
@@ -300,7 +409,7 @@ main()
 
     // Energy Framework
     double defaultCurrent = 86.3;
-    int defaultSourceVoltage = IDLE;
+    int defaultSourceVoltage = IDLE_A;
     int defaultSourceInitialEnergyJ = 100000000;
     int defaultSourceUpdateInterval = 30;
 
@@ -310,7 +419,11 @@ main()
     basicSource->SetInitialEnergy(defaultSourceInitialEnergyJ);
     basicSource->TraceConnectWithoutContext("RemainingEnergy", MakeCallback(&PrintRemainEnergy));
 
-    DeviceEnergyModelContainer deviceEMCont;
+    // DeviceEnergyModelContainer deviceEMCont; //For some reason, the container coverts the
+    // SimpleDeviceEnergyModel to DeviceEnergyModel, so some atributtes are not available
+    // So, I created a vector of Ptr<SimpleDeviceEnergyModel> to store the energy models
+    // vector<Ptr<SimpleDeviceEnergyModel>> simDevEMCont;
+
     for (uint32_t u = 0; u < enbNodes.GetN(); ++u)
     {
         Ptr<Node> enb = enbNodes.Get(u);
@@ -320,10 +433,14 @@ main()
         eneMod->SetNode(enb);
         eneMod->SetEnergySource(basicSource);
         eneMod->SetCurrentA(defaultCurrent);
+        // eneMod->GetNode()->GetId();
 
         basicSource->AppendDeviceEnergyModel(eneMod);
-        deviceEMCont.Add(eneMod);
+        // deviceEMCont.Add(eneMod);
+        simDevEMCont.push_back(eneMod);
+        // enb->AggregateObject(basicSource); //EXPLORAR ESSE PONTO
     }
+    Simulator::Schedule(Seconds(simuTime), &TotalEnergyConsumptionByDevice, simDevEMCont);
 
     // -------- Enable PHY, MAC, RLC and PDCP level Key Performance Indicators (KPIs).
     // lteHelper->EnablePhyTraces(); // Uncomment this to enable LTE PHYSIC layer traces
@@ -331,13 +448,11 @@ main()
     lteHelper->EnableRlcTraces(); // Uncomment this to enable LTE RADIO LINK CONTROL layer traces
     // lteHelper->EnablePdcpTraces(); // Uncomment this to enable LTE PDCP layer traces
 
-    Ptr<LteEnbNetDevice> enbDevice = enbLteDevs.Get(2)->GetObject<LteEnbNetDevice>();
-    Simulator::Schedule(Seconds(10), &sleepSchedule, enbDevice);
+    Ptr<LteEnbNetDevice> enbDevice = enbLteDevs.Get(0)->GetObject<LteEnbNetDevice>();
+    Simulator::Schedule(Seconds(sleepTime), &sleepSchedule, enbDevice);
     // uint64_t dlBandwidth = enbDevice->GetDlBandwidth();
     // uint64_t teste = enbDevice->GetRrc()->GetUeManager(2)->GetImsi();
     // Simulator::Schedule(Seconds(20), &simpleSchedule, teste);
-
-    Simulator::Schedule(Seconds(simuTime), &TotalEnergyConsumptionByDevice, deviceEMCont);
 
     Simulator::Stop(Seconds(simuTime));
     Simulator::Run();
