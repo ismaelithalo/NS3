@@ -20,7 +20,6 @@ static double TX_A = 742.2;
 static double RX_A = 138.9;
 
 vector<Ptr<SimpleDeviceEnergyModel>> simDevEMCont;
-vector<Ptr<SimpleDeviceEnergyModel>> simDevEMCont2;
 vector<uint32_t> sleepingStations;
 
 // enum State
@@ -35,14 +34,14 @@ vector<uint32_t> sleepingStations;
 // };
 
 // -------- Function called when there is a course change
-static void
-CourseChange(std::string context, Ptr<const MobilityModel> mobility)
-{
-    Vector pos = mobility->GetPosition();
-    Vector vel = mobility->GetVelocity();
-    std::cout << Simulator::Now().GetSeconds() << ", model=" << mobility << ", POS: x=" << pos.x
-              << ", y=" << pos.y << "; VEL:" << vel.x << ", y=" << vel.y << ";" << std::endl;
-}
+// static void
+// CourseChange(std::string context, Ptr<const MobilityModel> mobility)
+// {
+//     Vector pos = mobility->GetPosition();
+//     Vector vel = mobility->GetVelocity();
+//     std::cout << Simulator::Now().GetSeconds() << ", model=" << mobility << ", POS: x=" << pos.x
+//               << ", y=" << pos.y << "; VEL:" << vel.x << ", y=" << vel.y << ";" << std::endl;
+// }
 
 void
 NotifyHandoverEndOkEnb(std::string context, uint64_t imsi, uint16_t cellId, uint16_t rnti)
@@ -58,30 +57,14 @@ simpleSchedule(uint64_t value)
 }
 
 void
-setCurrentDeviceVector(uint32_t id, double current, bool type)
+setCurrentDeviceVector(uint32_t id, double current)
 {
-    if (type)
+    for (uint32_t i = 0; i < simDevEMCont.size(); ++i)
     {
-        for (uint32_t i = 0; i < simDevEMCont.size(); ++i)
+        Ptr<SimpleDeviceEnergyModel> device = simDevEMCont[i];
+        if (device->GetNode()->GetId() == id)
         {
-            Ptr<SimpleDeviceEnergyModel> device = simDevEMCont[i];
-            if (device->GetNode()->GetId() == id)
-            {
-                device->SetCurrentA(current);
-                break;
-            }
-        }
-    }
-    else
-    {
-        for (uint32_t i = 0; i < simDevEMCont2.size(); ++i)
-        {
-            Ptr<SimpleDeviceEnergyModel> device = simDevEMCont2[i];
-            if (device->GetNode()->GetId() == id)
-            {
-                device->SetCurrentA(current);
-                break;
-            }
+            device->SetCurrentA(current);
         }
     }
 }
@@ -92,8 +75,7 @@ sleepSchedule(Ptr<LteEnbNetDevice> enbDevice)
     double currentPoweSleep = IDLE_A;
     uint32_t id = enbDevice->GetNode()->GetId();
 
-    setCurrentDeviceVector(id, currentPoweSleep, 1);
-    setCurrentDeviceVector(id, currentPoweSleep, 0);
+    setCurrentDeviceVector(id, currentPoweSleep);
 
     enbDevice->GetPhy()->SetTxPower(currentPoweSleep);
     double txPower = enbDevice->GetPhy()->GetTxPower();
@@ -122,17 +104,17 @@ ChangeStateEventUlv2(string idOnContext, int32_t oldState, int32_t newState)
             switch (newState)
             {
             case 0:
-                setCurrentDeviceVector(id, IDLE_A, 1);
+                setCurrentDeviceVector(id, IDLE_A);
                 break;
             case 1:
             case 2:
             case 3:
-                setCurrentDeviceVector(id, TX_A, 1);
+                setCurrentDeviceVector(id, TX_A);
                 break;
             case 4:
             case 5:
             case 6:
-                setCurrentDeviceVector(id, RX_A, 1);
+                setCurrentDeviceVector(id, RX_A);
                 break;
 
             default:
@@ -145,17 +127,17 @@ ChangeStateEventUlv2(string idOnContext, int32_t oldState, int32_t newState)
         switch (newState)
         {
         case 0:
-            setCurrentDeviceVector(id, IDLE_A, 1);
+            setCurrentDeviceVector(id, IDLE_A);
             break;
         case 1:
         case 2:
         case 3:
-            setCurrentDeviceVector(id, TX_A, 1);
+            setCurrentDeviceVector(id, TX_A);
             break;
         case 4:
         case 5:
         case 6:
-            setCurrentDeviceVector(id, RX_A, 1);
+            setCurrentDeviceVector(id, RX_A);
             break;
 
         default:
@@ -185,17 +167,17 @@ ChangeStateEventDlv2(string idOnContext, int32_t oldState, int32_t newState)
             switch (newState)
             {
             case 0:
-                setCurrentDeviceVector(id, IDLE_A, 0);
+                setCurrentDeviceVector(id, IDLE_A);
                 break;
             case 1:
             case 2:
             case 3:
-                setCurrentDeviceVector(id, TX_A, 0);
+                setCurrentDeviceVector(id, TX_A);
                 break;
             case 4:
             case 5:
             case 6:
-                setCurrentDeviceVector(id, RX_A, 0);
+                setCurrentDeviceVector(id, RX_A);
                 break;
 
             default:
@@ -208,17 +190,17 @@ ChangeStateEventDlv2(string idOnContext, int32_t oldState, int32_t newState)
         switch (newState)
         {
         case 0:
-            setCurrentDeviceVector(id, IDLE_A, 0);
+            setCurrentDeviceVector(id, IDLE_A);
             break;
         case 1:
         case 2:
         case 3:
-            setCurrentDeviceVector(id, TX_A, 0);
+            setCurrentDeviceVector(id, TX_A);
             break;
         case 4:
         case 5:
         case 6:
-            setCurrentDeviceVector(id, RX_A, 0);
+            setCurrentDeviceVector(id, RX_A);
             break;
 
         default:
@@ -237,24 +219,16 @@ PrintRemainEnergy(double oldValue, double value)
 }
 
 void
-TotalEnergyConsumptionByDevice(double simulationTime)
+TotalEnergyConsumptionByDevice(vector<Ptr<SimpleDeviceEnergyModel>> deviceEMCont,
+                               double simulationTime)
 {
     double totalEnergyConsumption = 0;
-    for (uint32_t i = 0; i < simDevEMCont.size(); ++i)
+    for (uint32_t i = 0; i < deviceEMCont.size(); ++i)
     {
-        Ptr<SimpleDeviceEnergyModel> device = simDevEMCont[i];
+        Ptr<SimpleDeviceEnergyModel> device = deviceEMCont[i];
         totalEnergyConsumption += device->GetTotalEnergyConsumption();
-        std::cout << "Total energy consumption of node " << device->GetNode()->GetId()
-                  << " for uplink: " << device->GetTotalEnergyConsumption() / simulationTime << " W"
-                  << std::endl;
-    }
-    for (uint32_t i = 0; i < simDevEMCont2.size(); ++i)
-    {
-        Ptr<SimpleDeviceEnergyModel> device = simDevEMCont2[i];
-        totalEnergyConsumption += device->GetTotalEnergyConsumption();
-        std::cout << "Total energy consumption of node " << device->GetNode()->GetId()
-                  << " for donwlink: " << device->GetTotalEnergyConsumption() / simulationTime
-                  << " W" << std::endl;
+        std::cout << "Total energy consumption of node " << device->GetNode()->GetId() << " : "
+                  << device->GetTotalEnergyConsumption() / simulationTime << " W" << std::endl;
     }
     std::cout << "Total energy consumption: " << totalEnergyConsumption / simulationTime << " W"
               << std::endl;
@@ -384,7 +358,7 @@ main()
     mobility.Install(ueNodes);
 
     // -------- For each course change event, print out a line of text
-    Config::Connect("/NodeList/*/$ns3::MobilityModel/CourseChange", MakeCallback(&CourseChange));
+    // Config::Connect("/NodeList/*/$ns3::MobilityModel/CourseChange", MakeCallback(&CourseChange));
 
     // -------- Install an LTE protocol stack on nodes
 
@@ -516,22 +490,17 @@ main()
         basicSource->SetNode(enb);
 
         Ptr<SimpleDeviceEnergyModel> eneMod = CreateObject<SimpleDeviceEnergyModel>();
-        Ptr<SimpleDeviceEnergyModel> eneMod2 = CreateObject<SimpleDeviceEnergyModel>();
         eneMod->SetNode(enb);
         eneMod->SetEnergySource(basicSource);
         eneMod->SetCurrentA(defaultCurrent);
+        // eneMod->GetNode()->GetId();
 
         basicSource->AppendDeviceEnergyModel(eneMod);
+        // deviceEMCont.Add(eneMod);
         simDevEMCont.push_back(eneMod);
-
-        eneMod2->SetNode(enb);
-        eneMod2->SetEnergySource(basicSource);
-        eneMod2->SetCurrentA(defaultCurrent);
-
-        basicSource->AppendDeviceEnergyModel(eneMod2);
-        simDevEMCont2.push_back(eneMod2);
+        // enb->AggregateObject(basicSource); //EXPLORAR ESSE PONTO
     }
-    Simulator::Schedule(Seconds(simuTime), &TotalEnergyConsumptionByDevice, simuTime);
+    Simulator::Schedule(Seconds(simuTime), &TotalEnergyConsumptionByDevice, simDevEMCont, simuTime);
 
     // -------- Enable PHY, MAC, RLC and PDCP level Key Performance Indicators (KPIs).
     // lteHelper->EnablePhyTraces(); // Uncomment this to enable LTE PHYSIC layer traces
