@@ -10,6 +10,7 @@
 #include <ns3/network-module.h>
 #include <ns3/point-to-point-module.h>
 
+#include <algorithm>
 #include <vector>
 
 using namespace ns3;
@@ -36,6 +37,7 @@ vector<uint32_t> sleepingStations;
 // };
 
 // -------- Function called when there is a course change
+
 // static void
 // CourseChange(std::string context, Ptr<const MobilityModel> mobility)
 // {
@@ -93,49 +95,19 @@ sleepSchedule(Ptr<LteEnbNetDevice> enbDevice)
     enbDevice->GetPhy()->SetTxPower(0.0);
     double txPower = enbDevice->GetPhy()->GetTxPower();
     sleepingStations.push_back(id);
+
     // enbDevice->GetPhy()->GetDlSpectrumPhy()->SetState(ns3::LteSpectrumPhy::State::IDLE);
     // enbDevice->GetPhy()->GetUlSpectrumPhy()->SetState(ns3::LteSpectrumPhy::State::IDLE);
+
     std::cout << "Sleep scheduled event for Cell " << id << std::endl;
     std::cout << "TxPower of enb " << id << ": " << txPower << std::endl;
 }
 
-// void
-// ChangeStateEventUl(int32_t oldState, int32_t newState)
-// {
-//     // ChangeState(newState);
-//     std::cout << "ESTADO DO UPLINK: " << newState << std::endl;
-// }
 void
 ChangeStateEventUlv2(string idOnContext, int32_t oldState, int32_t newState)
 {
     uint32_t id = stoi(idOnContext);
-    if (sleepingStations.size() != 0)
-    {
-        uint32_t sleepingId = sleepingStations[0];
-        if (id != sleepingId)
-        {
-            switch (newState)
-            {
-            case 0:
-                setCurrentDeviceVector(id, IDLE_A, 1);
-                break;
-            case 1:
-            case 2:
-            case 3:
-                setCurrentDeviceVector(id, TX_A, 1);
-                break;
-            case 4:
-            case 5:
-            case 6:
-                setCurrentDeviceVector(id, RX_A, 1);
-                break;
-
-            default:
-                break;
-            }
-        }
-    }
-    else
+    if (std::find(sleepingStations.begin(), sleepingStations.end(), id) == sleepingStations.end())
     {
         switch (newState)
         {
@@ -163,43 +135,11 @@ ChangeStateEventUlv2(string idOnContext, int32_t oldState, int32_t newState)
     //           << ": " << newState << std::endl;
 }
 
-// void
-// ChangeStateEventDl(int32_t oldState, int32_t newState)
-// {
-//     // ChangeState(newState);
-//     std::cout << "ESTADO DO DOWNLINK: " << newState << std::endl;
-// }
 void
 ChangeStateEventDlv2(string idOnContext, int32_t oldState, int32_t newState)
 {
     uint32_t id = stoi(idOnContext);
-    if (sleepingStations.size() != 0)
-    {
-        uint32_t sleepingId = sleepingStations[0];
-        if (id != sleepingId)
-        {
-            switch (newState)
-            {
-            case 0:
-                setCurrentDeviceVector(id, IDLE_A, 0);
-                break;
-            case 1:
-            case 2:
-            case 3:
-                setCurrentDeviceVector(id, TX_A, 0);
-                break;
-            case 4:
-            case 5:
-            case 6:
-                setCurrentDeviceVector(id, RX_A, 0);
-                break;
-
-            default:
-                break;
-            }
-        }
-    }
-    else
+    if (std::find(sleepingStations.begin(), sleepingStations.end(), id) == sleepingStations.end())
     {
         switch (newState)
         {
@@ -262,22 +202,22 @@ main()
 {
     // -------- Define some model params
 
-    double simulationTime = 30;
+    double simulationTime = 30; // s
 
-    uint16_t numberOfUes = 40;
+    uint16_t numberOfUes = 10;
     uint16_t numberOfEnbs = 4;
 
-    double enbDistance = 75; // m -> (numberOfEnbs + 1) * enbDistance x (enbDistance * 2)
-    double enbTxPowerDbm = 20;
+    double enbDistance = 75;        // m -> (numberOfEnbs + 1) * enbDistance x (enbDistance * 2)
+    double enbTxPowerDbm = 20;      // dBm
     string ueMobilitySpeed = "3.0"; // m
     string ueMobilityTime = "1s";   // s
 
-    bool sleep = true;
-    int sleepCell = 3; // max = (numberOfEnbs - 1)
-    double sleepTime = 15;
+    bool sleep = false;        // Activate sleep mode
+    double sleepMoment = 15;   // Time that sleep mode will be activated
+    int sleepCells[] = {0, 1}; // Select cells that will be in sleep mode
 
     double defaultCurrent = IDLE_A;                     // A
-    double defaultSourceVoltage = 5;                    // V
+    double defaultSourceVoltage = 220;                  // V
     long int defaultSourceInitialEnergyJ = 10000000000; // J
     int defaultSourceUpdateInterval = 30;               // s
 
@@ -530,12 +470,23 @@ main()
 
     if (sleep)
     {
-        Simulator::Schedule(Seconds(sleepTime),
-                            &sleepSchedule,
-                            enbLteDevs.Get(sleepCell)->GetObject<LteEnbNetDevice>());
+        // for (uint32_t i = 0; i < sizeof(sleepCells); i++)
+        // {
+        //     Simulator::Schedule(Seconds(sleepMoment + i),
+        //                         &sleepSchedule,
+        //                         enbLteDevs.Get(sleepCells[i])->GetObject<LteEnbNetDevice>());
+        // }
+        for (int i : sleepCells)
+        {
+            Simulator::Schedule(Seconds(sleepMoment + i),
+                                &sleepSchedule,
+                                enbLteDevs.Get(sleepCells[i])->GetObject<LteEnbNetDevice>());
+        }
+        // Simulator::Schedule(Seconds(sleepMoment),
+        //                     &sleepSchedule,
+        //                     enbLteDevs.Get(sleepCell)->GetObject<LteEnbNetDevice>());
     }
-    // Ptr<LteEnbNetDevice> enbDevice = enbLteDevs.Get(sleepCell)->GetObject<LteEnbNetDevice>();
-    // Simulator::Schedule(Seconds(sleepTime), &sleepSchedule, enbDevice);
+
     std::cout << "Simulation started" << std::endl;
     Simulator::Stop(Seconds(simulationTime));
     Simulator::Run();
