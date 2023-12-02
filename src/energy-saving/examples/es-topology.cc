@@ -201,7 +201,6 @@ void
 TotalEnergyConsumptionByDevice(double simulationTime)
 {
     double totalEnergyConsumption = 0;
-    // double totalEnergyConsumptionDl = 0;
     for (uint32_t i = 0; i < simDevEMCont.size(); ++i)
     {
         Ptr<SimpleDeviceEnergyModel> device = simDevEMCont[i];
@@ -219,20 +218,7 @@ TotalEnergyConsumptionByDevice(double simulationTime)
                   << " DL = " << device2->GetTotalEnergyConsumption() / simulationTime << " W"
                   << std::endl;
     }
-    // for (uint32_t i = 0; i < simDevEMCont2.size(); ++i)
-    // {
-    //     Ptr<SimpleDeviceEnergyModel> device2 = simDevEMCont2[i];
-    //     totalEnergyConsumption += device2->GetTotalEnergyConsumption();
 
-    //     Ptr<LteEnbNetDevice> enbDevice =
-    //         DynamicCast<LteEnbNetDevice>(device->GetNode()->GetDevice(0));
-    //     uint16_t cid = enbDevice->GetCellId();
-
-    //     std::cout << "Total energy consumption of node " << device->GetNode()->GetId()
-    //               << " that serves cell " << cid
-    //               << " for donwlink: " << device->GetTotalEnergyConsumption() / simulationTime
-    //               << " W" << std::endl;
-    // }
     std::cout << "Total energy consumption: " << totalEnergyConsumption / simulationTime << " W"
               << std::endl;
 }
@@ -524,8 +510,11 @@ main()
         Ptr<Node> enb = enbNodes.Get(u);
         basicSource->SetNode(enb);
 
-        Ptr<SimpleDeviceEnergyModel> eneMod = CreateObject<SimpleDeviceEnergyModel>();
-        Ptr<SimpleDeviceEnergyModel> eneMod2 = CreateObject<SimpleDeviceEnergyModel>();
+        Ptr<SimpleDeviceEnergyModel> eneMod =
+            CreateObject<SimpleDeviceEnergyModel>(); // One device for UL
+        Ptr<SimpleDeviceEnergyModel> eneMod2 =
+            CreateObject<SimpleDeviceEnergyModel>(); // Other device for DL
+
         eneMod->SetNode(enb);
         eneMod->SetEnergySource(basicSource);
         eneMod->SetCurrentA(defaultCurrent);
