@@ -11,6 +11,10 @@ build_lib_example(
                     ${libapplications}
                     ${libenergy}
                     # ${libenergy-saving}
+                    ${libnetanim}
+                    ${libflow-monitor}
+                    ${libconfig-store}
+                    ${libgnuplot}
 )
 
 build_lib_example(
@@ -25,6 +29,9 @@ build_lib_example(
                     ${libinternet}
                     ${libapplications}
                     ${libenergy}
+                    ${libflow-monitor}
+                    # ${libconfig-store}
+                    # ${libgnuplot}
 )
 
 # set(base_examples

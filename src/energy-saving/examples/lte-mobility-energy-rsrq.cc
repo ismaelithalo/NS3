@@ -3,7 +3,6 @@
 #include <ns3/applications-module.h>
 #include <ns3/core-module.h>
 #include <ns3/energy-module.h>
-#include <ns3/flow-monitor-module.h>
 #include <ns3/internet-module.h>
 #include <ns3/lte-module.h>
 #include <ns3/mobility-building-info.h>
@@ -16,6 +15,11 @@
 
 using namespace ns3;
 using namespace std;
+
+// static double IDLE_A = 86.3;
+// static double TX_A = 742.2;
+// static double RX_A = 138.9;
+// static double SLEEP_A = 40;
 
 static double IDLE_A = 0.3;
 static double TX_A = 1.38;
@@ -202,9 +206,9 @@ PrintRemainEnergy(double oldValue, double value)
 }
 
 void
-TotalEnergyConsumptionByDevice(double simulationTime, string rootFilename)
+TotalEnergyConsumptionByDevice(double simulationTime)
 {
-    outFileEnergy.open(rootFilename + "energyfile.csv", std::ios_base::out | std::ios_base::trunc);
+    outFileEnergy.open("energyfile.csv", std::ios_base::out | std::ios_base::trunc);
     outFileEnergy << "enbNode,cell,ulConsumption,dlConsumption" << std::endl;
     double totalEnergyConsumption = 0;
     for (uint32_t i = 0; i < simDevEMCont.size(); ++i)
@@ -236,14 +240,12 @@ TotalEnergyConsumptionByDevice(double simulationTime, string rootFilename)
 }
 
 // void
-// PrintUeMeasurements(
-//     std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>> a,
-//     uint16_t rnti,
-//     uint16_t cellId,
-//     double rsrp,
-//     double rsrq,
-//     bool attached,
-//     u_char ccid)
+// PrintUeMeasurements(uint16_t rnti,
+//                     uint16_t cellId,
+//                     double rsrp,
+//                     double rsrq,
+//                     bool attached,
+//                     u_char ccid)
 // {
 //     outFileQuality << Simulator::Now().GetSeconds() << "," << rnti << "," << cellId << ","
 //                    << attached << "," << rsrp << "," << rsrq << std::endl;
@@ -253,48 +255,21 @@ TotalEnergyConsumptionByDevice(double simulationTime, string rootFilename)
 // }
 
 void
-MonitorManager(FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> flowMon)
+PrintUeMeasurements(
+    std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>> a,
+    uint16_t rnti,
+    uint16_t cellId,
+    double rsrp,
+    double rsrq,
+    bool attached,
+    u_char ccid)
 {
-    std::map<FlowId, FlowMonitor::FlowStats> flowStats = flowMon->GetFlowStats();
-    Ptr<Ipv4FlowClassifier> classing = DynamicCast<Ipv4FlowClassifier>(fmhelper->GetClassifier());
+    outFileQuality << Simulator::Now().GetSeconds() << "," << rnti << "," << cellId << ","
+                   << attached << "," << rsrp << "," << rsrq << std::endl;
 
-    int counter = 0;
-    double accThroughput = 0;
-    double accLostPackets = 0;
-    double accJitter = 0;
-    double accMeanJitter = 0;
-
-    for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator stats = flowStats.begin();
-         stats != flowStats.end();
-         ++stats)
-    {
-        Ipv4FlowClassifier::FiveTuple fiveTuple = classing->FindFlow(stats->first);
-        if (fiveTuple.sourceAddress == Ipv4Address("1.0.0.2") && fiveTuple.destinationPort == 1234)
-        {
-            accThroughput += (stats->second.rxBytes * 8.0 /
-                              (stats->second.timeLastRxPacket.GetSeconds() -
-                               stats->second.timeFirstTxPacket.GetSeconds()) /
-                              1024);
-            accJitter += (stats->second.jitterSum.GetSeconds());
-            accLostPackets += (stats->second.lostPackets);
-            accMeanJitter += (stats->second.jitterSum.GetSeconds() / (stats->second.rxPackets));
-
-            counter++;
-        }
-    }
-
-    // std::cout << Simulator::Now() << " Throughput: " << accThroughput / counter << " Kbps"
-    //           << " Jitter: " << accJitter / counter << " s "
-    //           << " Total Lost Packets: " << accLostPackets << " Value: " << accMeanJitter /
-    //           counter
-    //           << std::endl;
-
-    outFileQuality << Simulator::Now().GetSeconds() << "," << accThroughput / counter << ","
-                   << accJitter / counter << "," << accMeanJitter / counter << "," << accLostPackets
-                   << std::endl;
-
-    Simulator::Schedule(Seconds(0.2), &MonitorManager, fmhelper, flowMon);
-    // flowMon->SerializeToXmlFile("MonitorOutput.xml", true, true);
+    // std::cout << Simulator::Now().GetSeconds() << " RNTI: " << rnti << " CellId: " << cellId
+    //           << " Attached: " << attached << " RSRP: " << rsrp << " RSRQ: " << rsrq <<
+    //           std::endl;
 }
 
 int
@@ -304,18 +279,18 @@ main()
 
     double simulationTime = 30; // s
 
-    uint16_t numberOfUes = 40;
+    uint16_t numberOfUes = 90;
     uint16_t numberOfEnbs = 4;
 
     double enbDistance = 50;        // m -> (numberOfEnbs + 1) * enbDistance x (enbDistance * 2)
     double enbTxPowerDbm = 20;      // dBm
-    string ueMobilitySpeed = "1.0"; // m
+    string ueMobilitySpeed = "2.0"; // m
     string ueMobilityTime = "1s";   // s
 
     bool attachUe = true; // Attach UEs to eNBs, disable to evaluate zero-connectivity energy
 
     bool sleep = true;                        // Activate sleep mode
-    double sleepMoments[] = {10, 35, 60, 85}; // Time that sleep mode will be activated
+    double sleepMoments[] = {15, 18, 21, 24}; // Time that sleep mode will be activated
     int sleepCells[] = {0, 1, 2, 3};          // Select cells that will be in sleep mode
     bool sleepRotation = true;                // Activate sleep rotation
 
@@ -324,57 +299,52 @@ main()
     long int defaultSourceInitialEnergyJ = 10000000000; // J
     int defaultSourceUpdateInterval = 30;               // s
 
-    bool handoverLogs = true;      // Activate handover logs
+    bool handoverLogs = false;     // Activate handover logs
     bool remainEnergyLogs = false; // Activate remain source energy logs
-    bool courseChangeLogs = false; // Activate ue course change logs
-    bool totalEnergyLogs = false;  // Activate energy logs and create energy logs file
-    bool qualityLogs = false;      // Create quality logs file
-    bool modelLogs = true;         // Print model params
+    bool courseChangeLogs = false; // Activate course change logs
+    bool totalEnergyLogs = true;   // Activate total energy logs
 
     // -------- Print defined model params
 
-    if (modelLogs)
+    cout << endl << "Simulation Model Values: " << endl << endl;
+    cout << "Nº of eNB(s): " << numberOfEnbs << endl;
+    cout << "eNB distance: " << enbDistance << " m" << endl;
+    cout << "eNB Tx Power: " << enbTxPowerDbm << " dBm" << endl;
+
+    cout << "Nº of UE(s): " << numberOfUes << endl;
+    cout << "UE Mobility Speed: " << ueMobilitySpeed << " m/s" << endl;
+
+    cout << endl << "Simulation Configs: " << endl << endl;
+    if (sleep)
     {
-        cout << endl << "Simulation Model Values: " << endl << endl;
-        cout << "Nº of eNB(s): " << numberOfEnbs << endl;
-        cout << "eNB distance: " << enbDistance << " m" << endl;
-        cout << "eNB Tx Power: " << enbTxPowerDbm << " dBm" << endl;
+        cout << "Sleep Mode: "
+             << "True" << endl;
+        cout << "Sleep Rotation: " << sleepRotation << endl;
 
-        cout << "Nº of UE(s): " << numberOfUes << endl;
-        cout << "UE Mobility Speed: " << ueMobilitySpeed << " m/s" << endl;
-
-        cout << endl << "Simulation Configs: " << endl << endl;
-        if (sleep)
+        // cout << "Sleep Moment: " << sleepMoment << " s" << endl;
+        cout << "Sleep Cells: ";
+        for (int i : sleepCells)
         {
-            cout << "Sleep Mode: "
-                 << "True" << endl;
-            cout << "Sleep Rotation: " << sleepRotation << endl;
-
-            // cout << "Sleep Moment: " << sleepMoment << " s" << endl;
-            cout << "Sleep Cells: ";
-            for (int i : sleepCells)
-            {
-                cout << i << " ";
-            }
-            cout << endl;
-            cout << "Sleep Moments: ";
-            for (double i : sleepMoments)
-            {
-                cout << i << " ";
-            }
-            cout << endl;
+            cout << i << " ";
         }
-        else
+        cout << endl;
+        cout << "Sleep Moments: ";
+        for (double i : sleepMoments)
         {
-            cout << "Sleep Mode: "
-                 << "False" << endl;
+            cout << i << " ";
         }
-        cout << "Simulation Time: " << simulationTime << " s" << endl;
-        cout << "Handover Logs: " << handoverLogs << endl;
-        cout << "Remain Energy Logs: " << remainEnergyLogs << endl;
-        cout << "Course Change Logs: " << courseChangeLogs << endl;
-        cout << "Total Energy Logs: " << totalEnergyLogs << endl;
+        cout << endl;
     }
+    else
+    {
+        cout << "Sleep Mode: "
+             << "False" << endl;
+    }
+    cout << "Simulation Time: " << simulationTime << " s" << endl;
+    cout << "Handover Logs: " << handoverLogs << endl;
+    cout << "Remain Energy Logs: " << remainEnergyLogs << endl;
+    cout << "Course Change Logs: " << courseChangeLogs << endl;
+    cout << "Total Energy Logs: " << totalEnergyLogs << endl;
 
     // Config::SetDefault("ns3::RadioBearerStatsCalculator::EpochDuration", TimeValue(Seconds(2)));
     // Config::SetDefault("ns3::RandomWalk2dMobilityModel::Mode",StringValue("Time"));
@@ -469,6 +439,7 @@ main()
                                   StringValue(envYCenterStr),
                                   "Rho",
                                   StringValue("ns3::UniformRandomVariable[Min=0|Max=40]"));
+    //   StringValue("ns3::UniformRandomVariable[Min=0|Max=80]"));
 
     mobility.SetMobilityModel(
         "ns3::RandomWalk2dMobilityModel",
@@ -531,17 +502,37 @@ main()
     lteHelper->ActivateDedicatedEpsBearer(ueLteDevs,
                                           EpsBearer(EpsBearer::NGBR_VIDEO_TCP_DEFAULT),
                                           tft);
+    // -------- Activate a data radio bearer between each UE and the eNB it is attached to
+    // enum EpsBearer::Qci q = EpsBearer::GBR_CONV_VOICE;
+    // EpsBearer bearer(q);
+    // lteHelper->ActivateDataRadioBearer(ueDevs, bearer);
 
     // Add X2 interface
     lteHelper->AddX2Interface(enbNodes);
 
-    // outFileQuality.open("qualityfile.csv", std::ios_base::out | std::ios_base::trunc);
-    // outFileQuality << "time,rnti,cell,attached,rsrp,rsrq" << std::endl;
+    // Ptr<LteUePhy> lteUePhy = ueLteDevs.Get(0)->GetObject<LteUeNetDevice>()->GetPhy();
+    // lteUePhy->TraceConnectWithoutContext("ReportUeMeasurements",
+    //                                      MakeCallback(&PrintUeMeasurements));
+
+    outFileQuality.open("qualityfile.csv", std::ios_base::out | std::ios_base::trunc);
+    outFileQuality << "time,rnti,cell,attached,rsrp,rsrq" << std::endl;
     // outFileQuality.close();
 
-    // Config::Connect("/NodeList/*/DeviceList/*/$ns3::LteUeNetDevice/ComponentCarrierMapUe/*/"
-    //                 "LteUePhy/ReportUeMeasurements",
-    //                 MakeCallback(&PrintUeMeasurements));
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::LteUeNetDevice/ComponentCarrierMapUe/*/"
+                    "LteUePhy/ReportUeMeasurements",
+                    MakeCallback(&PrintUeMeasurements));
+
+    // cout << endl;
+    // for (uint32_t i = 0; i < ueLteDevs.GetN(); i++)
+    // {
+    //     // cout << "UE " << i << " attached to eNB " << ueLteDevs.Get(i)->GetNode()->GetId() <<
+    //     // endl;
+    //     Ptr<LteUePhy> lteUePhy = ueLteDevs.Get(i)->GetObject<LteUeNetDevice>()->GetPhy();
+    //     lteUePhy->TraceConnectWithoutContext("ReportUeMeasurements",
+    //                                          MakeCallback(&PrintUeMeasurements));
+    // }
+
+    //////////////////////
 
     if (handoverLogs)
         Config::Connect("/NodeList/*/DeviceList/*/LteEnbRrc/HandoverEndOk",
@@ -584,7 +575,7 @@ main()
 
     // DeviceEnergyModelContainer deviceEMCont; //For some reason, the container coverts the
     // SimpleDeviceEnergyModel to DeviceEnergyModel, so some atributtes are not available
-    // Therefore, I created a vector of Ptr<SimpleDeviceEnergyModel> to store the energy models
+    // So, I created a vector of Ptr<SimpleDeviceEnergyModel> to store the energy models
     // vector<Ptr<SimpleDeviceEnergyModel>> simDevEMCont;
 
     for (uint32_t u = 0; u < enbNodes.GetN(); ++u)
@@ -612,6 +603,11 @@ main()
         simDevEMCont2.push_back(eneMod2);
     }
 
+    if (totalEnergyLogs)
+        Simulator::Schedule(Seconds(simulationTime),
+                            &TotalEnergyConsumptionByDevice,
+                            simulationTime);
+
     // -------- Enable PHY, MAC, RLC and PDCP level Key Performance Indicators (KPIs).
     // lteHelper->EnablePhyTraces(); // Uncomment this to enable LTE PHYSIC layer traces
     // lteHelper->EnableMacTraces(); // Uncomment this to enable LTE MAC layer traces
@@ -619,8 +615,9 @@ main()
     // lteHelper->EnablePdcpTraces(); // Uncomment this to enable LTE PDCP layer traces
     // Ptr<RadioBearerStatsCalculator> rlcStats = lteHelper->GetRlcStats();
     // rlcStats->SetAttribute("EpochDuration", TimeValue(Seconds(1.0)));
+    // Ptr<RadioBearerStatsCalculator> pdcpStats = lteHelper->GetPdcpStats();
+    // pdcpStats->SetAttribute("EpochDuration", TimeValue(Seconds(1.0)));
 
-    string rootFilename;
     if (sleep)
     {
         long unsigned int j = 0;
@@ -641,43 +638,13 @@ main()
                 }
             }
         }
-
-        if (sizeof(sleepCells) / sizeof(int) == 1)
-            rootFilename =
-                "outputs/UE" + to_string(numberOfUes) + "SM" + to_string(sleepCells[0]) + "-";
-        else
-            rootFilename = "outputs/UE" + to_string(numberOfUes) + "SMR-";
     }
-    else
-    {
-        rootFilename = "outputs/UE" + to_string(numberOfUes) + "SMF-";
-    }
-
-    // flowMonitor declaration
-    FlowMonitorHelper fmHelper;
-    Ptr<FlowMonitor> flowMon = fmHelper.InstallAll();
-    flowMon->CheckForLostPackets();
-
-    if (qualityLogs)
-    {
-        outFileQuality.open(rootFilename + "qualityfile.csv",
-                            std::ios_base::out | std::ios_base::trunc);
-        outFileQuality << "time,throughput,accJitter,meanJitter,lostPackets" << std::endl;
-        MonitorManager(&fmHelper, flowMon);
-    }
-
-    if (totalEnergyLogs)
-        Simulator::Schedule(Seconds(simulationTime),
-                            &TotalEnergyConsumptionByDevice,
-                            simulationTime,
-                            rootFilename);
 
     cout << endl << "Simulation started" << endl << endl;
     Simulator::Stop(Seconds(simulationTime));
     Simulator::Run();
 
-    if (qualityLogs)
-        outFileQuality.close();
+    outFileQuality.close();
 
     cout << endl << "Simulation finished." << endl;
     Simulator::Destroy();
