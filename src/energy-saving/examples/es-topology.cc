@@ -262,7 +262,8 @@ MonitorManager(FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> flowMon)
     double accThroughput = 0;
     double accLostPackets = 0;
     double accJitter = 0;
-    double accMeanJitter = 0;
+    long double accMeanJitter = 0;
+    double accRxBytes = 0;
 
     for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator stats = flowStats.begin();
          stats != flowStats.end();
@@ -277,19 +278,35 @@ MonitorManager(FlowMonitorHelper* fmhelper, Ptr<FlowMonitor> flowMon)
                               1024);
             accJitter += (stats->second.jitterSum.GetSeconds());
             accLostPackets += (stats->second.lostPackets);
-            accMeanJitter += (stats->second.jitterSum.GetSeconds() / (stats->second.rxPackets));
+
+            if (stats->second.rxPackets > 0 || stats->second.jitterSum.GetSeconds() > 0)
+                accMeanJitter += (stats->second.jitterSum.GetSeconds() / (stats->second.rxPackets));
+            else
+                accMeanJitter += 0;
 
             counter++;
+
+            accRxBytes += ((stats->second.rxBytes) * 8) / 1024;
         }
     }
 
-    // std::cout << Simulator::Now() << " Throughput: " << accThroughput / counter << " Kbps"
+    // std::cout << Simulator::Now().GetSeconds()
+    //           << " Throughput Absoluto: " << (accRxBytes / Simulator::Now().GetSeconds()) << "
+    //           kbps"
+    //           << std::endl;
+
+    // std::cout << Simulator::Now().GetSeconds() << " Throughput Instantâneo: " << accThroughput
+    //           << " Kbps" << std::endl;
+
+    // std::cout << Simulator::Now().GetSeconds() << " Throughput: " << accThroughput / counter
+    //           << " Kbps"
     //           << " Jitter: " << accJitter / counter << " s "
     //           << " Total Lost Packets: " << accLostPackets << " Value: " << accMeanJitter /
     //           counter
     //           << std::endl;
 
     outFileQuality << Simulator::Now().GetSeconds() << "," << accThroughput / counter << ","
+                   << (accRxBytes / Simulator::Now().GetSeconds()) / counter << ","
                    << accJitter / counter << "," << accMeanJitter / counter << "," << accLostPackets
                    << std::endl;
 
@@ -302,9 +319,9 @@ main()
 {
     // -------- Define some model params
 
-    double simulationTime = 30; // s
+    double simulationTime = 40; // s
 
-    uint16_t numberOfUes = 40;
+    uint16_t numberOfUes = 89;
     uint16_t numberOfEnbs = 4;
 
     double enbDistance = 50;        // m -> (numberOfEnbs + 1) * enbDistance x (enbDistance * 2)
@@ -314,21 +331,24 @@ main()
 
     bool attachUe = true; // Attach UEs to eNBs, disable to evaluate zero-connectivity energy
 
-    bool sleep = true;                        // Activate sleep mode
-    double sleepMoments[] = {10, 35, 60, 85}; // Time that sleep mode will be activated
-    int sleepCells[] = {0, 1, 2, 3};          // Select cells that will be in sleep mode
-    bool sleepRotation = true;                // Activate sleep rotation
+    bool sleep = false;           // Activate sleep mode
+    double sleepMoments[] = {20}; // Time that sleep mode will be activated
+    int sleepCells[] = {0};       // Select cells that will be in sleep mode
+    bool sleepRotation = true;    // Activate sleep rotation
 
     double defaultCurrent = IDLE_A;                     // A
     double defaultSourceVoltage = 5;                    // V
     long int defaultSourceInitialEnergyJ = 10000000000; // J
     int defaultSourceUpdateInterval = 30;               // s
 
-    bool handoverLogs = true;      // Activate handover logs
+    bool simpleTraficChange = false;                // Activate simple trafic change
+    double timeToChangeTrafic = simulationTime / 2; // s
+
+    bool handoverLogs = false;     // Activate handover logs
     bool remainEnergyLogs = false; // Activate remain source energy logs
     bool courseChangeLogs = false; // Activate ue course change logs
-    bool totalEnergyLogs = false;  // Activate energy logs and create energy logs file
-    bool qualityLogs = false;      // Create quality logs file
+    bool totalEnergyLogs = true;   // Activate energy logs and create energy logs file
+    bool qualityLogs = true;       // Create quality logs file
     bool modelLogs = true;         // Print model params
 
     // -------- Print defined model params
@@ -517,6 +537,8 @@ main()
         UdpClientHelper client(ueIpIface.GetAddress(0), dlPort);
         ApplicationContainer clientApps = client.Install(remoteHost);
         clientApps.Start(Seconds(0.01));
+        if (simpleTraficChange)
+            clientApps.Stop(Seconds(timeToChangeTrafic)); // Stop packet sink
     }
 
     // Attach all UEs to the eNodeBs with the strongest RSRP
@@ -662,7 +684,8 @@ main()
     {
         outFileQuality.open(rootFilename + "qualityfile.csv",
                             std::ios_base::out | std::ios_base::trunc);
-        outFileQuality << "time,throughput,accJitter,meanJitter,lostPackets" << std::endl;
+        outFileQuality << "time,throughput,throughputAbs,accJitter,meanJitter,lostPackets"
+                       << std::endl;
         MonitorManager(&fmHelper, flowMon);
     }
 
